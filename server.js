@@ -166,9 +166,6 @@ app.post('/api/parse', apiKeyAuth, upload.single('pdfFile'), async (req, res) =>
 
     const pdfPath = req.file.path;
     const outputDir = path.join(__dirname, 'outputs');
-    const combinedTxtPath = path.join(outputDir, `api_temp_${Date.now()}.txt`);
-    const csvPath = path.join(outputDir, `api_temp_${Date.now()}.csv`);
-    tempFiles.push(combinedTxtPath, csvPath); // Mark for cleanup
 
     // 1. Run the PDF parser
     await runPythonScript('parser.py', [pdfPath, outputDir]);
@@ -190,9 +187,27 @@ app.post('/api/parse', apiKeyAuth, upload.single('pdfFile'), async (req, res) =>
   } finally {
     // Cleanup temporary files
     tempFiles.forEach(filePath => {
-      fs.unlink(filePath, err => {
-        if (err) console.error(`🧹 Error cleaning up temp file ${filePath}:`, err);
-      });
+      if (fs.existsSync(filePath)) {
+        fs.unlink(filePath, err => {
+          if (err) console.error(`🧹 Error cleaning up temp file ${filePath}:`, err);
+          else console.log(`🧹 Successfully cleaned up temp file: ${filePath}`);
+        });
+      }
+    });
+    
+    // Also cleanup the standard output files created by Python scripts
+    const standardFiles = [
+      path.join(__dirname, 'outputs', 'combined_cleaned_roster.txt'),
+      path.join(__dirname, 'outputs', 'parsed_schedule.csv')
+    ];
+    
+    standardFiles.forEach(filePath => {
+      if (fs.existsSync(filePath)) {
+        fs.unlink(filePath, err => {
+          if (err) console.error(`🧹 Error cleaning up standard file ${filePath}:`, err);
+          else console.log(`🧹 Successfully cleaned up standard file: ${filePath}`);
+        });
+      }
     });
   }
 });
