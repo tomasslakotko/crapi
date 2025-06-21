@@ -7,6 +7,7 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const API_KEY = process.env.API_KEY;
 
 // Middleware
 app.use(cors());
@@ -67,6 +68,21 @@ const csvToJson = (csvString) => {
         result.push(obj);
     }
     return result;
+};
+
+// Middleware to check for API Key
+const apiKeyAuth = (req, res, next) => {
+  const userApiKey = req.headers['x-api-key'];
+  if (!API_KEY) {
+    // If no API_KEY is set on the server, skip auth (for local development)
+    console.warn('⚠️ API_KEY not set. Skipping authentication. This is not recommended for production.');
+    return next();
+  }
+  if (!userApiKey || userApiKey !== API_KEY) {
+    console.log('❌ Unauthorized API access attempt.');
+    return res.status(401).json({ success: false, error: 'Unauthorized: Invalid API Key' });
+  }
+  next();
 };
 
 // Routes
@@ -139,7 +155,7 @@ app.post('/upload', upload.single('pdfFile'), async (req, res) => {
 });
 
 // New API endpoint for programmatic access
-app.post('/api/parse', upload.single('pdfFile'), async (req, res) => {
+app.post('/api/parse', apiKeyAuth, upload.single('pdfFile'), async (req, res) => {
   const tempFiles = [];
   try {
     console.log('🤖 API: Starting file upload processing...');
