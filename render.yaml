@@ -1,0 +1,13 @@
+services:
+  # A web service that runs the Node.js server with Python support.
+  - type: web
+    name: crew-schedule-parser
+    # The environment is 'docker' because we are using a Dockerfile.
+    # Render will automatically detect and use the Dockerfile in your repo.
+    env: docker
+    
+    # Health check to ensure the service is running correctly before marking a deploy as successful.
+    healthCheckPath: /
+    
+    # Optional: Uncomment and set the region closest to you or your users.
+    # region: frankfurt 

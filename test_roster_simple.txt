@@ -1,0 +1,26 @@
+date H duty R dep arr AC info
+Mon01
+C/I FRA 0800
+AZ 1234 FRA 0900 1100 MUC A320
+H1 MUC
+[FT 02:00] [DT 04:00] [RT 10:00]
+
+Tue02
+AZ 5678 MUC 0700 0900 FRA A320
+C/O 1000 FRA
+[FT 02:00] [DT 03:00] [RT 11:00]
+
+Wed03
+C/I FRA 0600
+AZ 9012 FRA 0700 1300 JFK A350
+H2 JFK
+meal breakfast
+[FT 06:00] [DT 08:00] [RT 16:00]
+
+Thu04
+AZ 3456 JFK 0800 2000 FRA A350
+C/O 2100 FRA
+meal lunch, dinner
+[FT 12:00] [DT 14:00] [RT 10:00]
+
+Individual duty plan for Crew Member - NetLine/Crew 

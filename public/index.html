@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crew Schedule Parser - Парсер графиков экипажа</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .upload-section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background-color: #f8f9ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background-color: #f0f2ff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.3rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            color: #999;
+            font-size: 1rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .upload-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.processing {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .results-section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .results-title {
+            font-size: 1.8rem;
+            color: #333;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .legend-section {
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 40px;
+            border: 1px solid #e0e6f1;
+        }
+
+        .legend-section h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+            font-size: 1.4rem;
+            border-bottom: 2px solid #f0f2ff;
+            padding-bottom: 10px;
+        }
+
+        .legend-section ul {
+            list-style-type: none;
+            padding-left: 0;
+            columns: 2;
+            column-gap: 40px;
+        }
+
+        .legend-section li {
+            margin-bottom: 10px;
+            color: #555;
+            font-size: 0.95rem;
+        }
+
+        .legend-section li strong {
+            color: #333;
+            min-width: 80px;
+            display: inline-block;
+        }
+
+        .legend-section .special-day {
+            color: #28a745; /* Green for positive statuses */
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background-color: #f8f9ff;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .upload-section, .results-section {
+                padding: 20px;
+            }
+            
+            .upload-area {
+                padding: 40px 20px;
+            }
+            
+            .upload-icon {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✈️ Crew Schedule Parser</h1>
+            <p>Загрузите PDF файл с графиком экипажа Lufthansa Netline Crewlink для автоматического парсинга</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text">Перетащите PDF файл сюда или нажмите для выбора</div>
+                <div class="upload-subtext">Поддерживаются только PDF файлы</div>
+                <input type="file" id="fileInput" class="file-input" accept=".pdf">
+                <button class="upload-btn" id="uploadBtn" onclick="document.getElementById('fileInput').click()">
+                    Выбрать файл
+                </button>
+            </div>
+
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <div class="status" id="status"></div>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="results-header">
+                <h2 class="results-title">Результаты парсинга</h2>
+                <a href="#" class="download-btn" id="downloadBtn" download>
+                    📥 Скачать CSV
+                </a>
+            </div>
+            <div class="table-container">
+                <table id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>День недели</th>
+                            <th>Тип дежурства</th>
+                            <th>Аэропорт вылета</th>
+                            <th>Время вылета</th>
+                            <th>Аэропорт прилета</th>
+                            <th>Время прилета</th>
+                            <th>Рейс</th>
+                            <th>Отель</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="legend-section">
+                <h3>💡 Легенда / Сокращения</h3>
+                <ul>
+                    <li><strong>C/I:</strong> Check-in (Время явки / начало)</li>
+                    <li><strong>C/O:</strong> Check-out (Окончание работы)</li>
+                    <li class="special-day"><strong>DAYOFF:</strong> Выходной день</li>
+                    <li><strong>FT:</strong> Flight Time (Полётное время)</li>
+                    <li><strong>DP/DT:</strong> Duty Period (Рабочий период)</li>
+                    <li><strong>FDP:</strong> Flight Duty Period (Полётный рабочий период)</li>
+                    <li class="special-day"><strong>SBY:</strong> Standby (Резерв)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const status = document.getElementById('status');
+        const resultsSection = document.getElementById('resultsSection');
+        const tableBody = document.getElementById('tableBody');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (file.type !== 'application/pdf') {
+                showStatus('Пожалуйста, выберите PDF файл', 'error');
+                return;
+            }
+
+            uploadFile(file);
+        }
+
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('pdfFile', file);
+
+            showStatus('<span class="loading"></span>Обрабатываем файл...', 'processing');
+            progressBar.style.display = 'block';
+            uploadBtn.disabled = true;
+
+            // Simulate progress
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                progressFill.style.width = progress + '%';
+            }, 200);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+
+                if (data.success) {
+                    showStatus('✅ Файл успешно обработан!', 'success');
+                    displayResults(data.csvData);
+                    downloadBtn.href = data.downloadUrl;
+                } else {
+                    showStatus('❌ Ошибка: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                clearInterval(progressInterval);
+                showStatus('❌ Ошибка загрузки: ' + error.message, 'error');
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                    progressFill.style.width = '0%';
+                    uploadBtn.disabled = false;
+                }, 1000);
+            });
+        }
+
+        function showStatus(message, type) {
+            status.innerHTML = message;
+            status.className = 'status ' + type;
+            status.style.display = 'block';
+        }
+
+        function displayResults(csvData) {
+            const lines = csvData.split('\n');
+            const headers = lines[0].split(',');
+            const data = lines.slice(1).filter(line => line.trim());
+
+            tableBody.innerHTML = '';
+
+            data.forEach(row => {
+                const cells = row.split(',');
+                const tr = document.createElement('tr');
+                
+                // Map the data to display columns
+                const displayData = [
+                    cells[0] || '', // Date
+                    cells[1] || '', // Weekday
+                    cells[3] || '', // Duty Type
+                    cells[10] || '', // Departure Airport
+                    cells[11] || '', // Departure Time
+                    cells[13] || '', // Arrival Airport
+                    cells[12] || '', // Arrival Time
+                    cells[9] || '', // Flight Number
+                    cells[8] || ''   // Hotel
+                ];
+
+                displayData.forEach(cell => {
+                    const td = document.createElement('td');
+                    td.textContent = cell.replace(/"/g, '');
+                    tr.appendChild(td);
+                });
+
+                tableBody.appendChild(tr);
+            });
+
+            resultsSection.style.display = 'block';
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html> 
