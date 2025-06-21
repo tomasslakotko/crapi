@@ -440,12 +440,15 @@
                 clearInterval(progressInterval);
                 progressFill.style.width = '100%';
 
+                console.log('Server response:', data); // Debug logging
+
                 if (data.success) {
                     showStatus('✅ Файл успешно обработан!', 'success');
                     displayResults(data.csvData);
                     downloadBtn.href = data.downloadUrl;
                 } else {
                     showStatus('❌ Ошибка: ' + data.error, 'error');
+                    console.error('Server error:', data.error);
                 }
             })
             .catch(error => {
@@ -468,32 +471,51 @@
         }
 
         function displayResults(csvData) {
-            const lines = csvData.split('\n');
-            const headers = lines[0].split(',');
-            const data = lines.slice(1).filter(line => line.trim());
+            // Handle both CSV string and JSON array formats
+            let data;
+            
+            if (typeof csvData === 'string') {
+                // Parse CSV format
+                const lines = csvData.split('\n');
+                const headers = lines[0].split(',');
+                data = lines.slice(1).filter(line => line.trim()).map(row => {
+                    const cells = row.split(',');
+                    const obj = {};
+                    headers.forEach((header, index) => {
+                        obj[header.trim().replace(/"/g, '')] = cells[index] ? cells[index].replace(/"/g, '') : '';
+                    });
+                    return obj;
+                });
+            } else if (Array.isArray(csvData)) {
+                // Already JSON array format
+                data = csvData;
+            } else {
+                console.error('Unexpected data format:', csvData);
+                showStatus('❌ Файл был обработан (но парсинг на стороне клиента не будет работать). Проверьте консоль разработчика для просмотра данных и ошибок.', 'error');
+                return;
+            }
 
             tableBody.innerHTML = '';
 
             data.forEach(row => {
-                const cells = row.split(',');
                 const tr = document.createElement('tr');
                 
-                // Map the data to display columns
+                // Map the data to display columns - handle both formats
                 const displayData = [
-                    cells[0] || '', // Date
-                    cells[1] || '', // Weekday
-                    cells[3] || '', // Duty Type
-                    cells[10] || '', // Departure Airport
-                    cells[11] || '', // Departure Time
-                    cells[13] || '', // Arrival Airport
-                    cells[12] || '', // Arrival Time
-                    cells[9] || '', // Flight Number
-                    cells[8] || ''   // Hotel
+                    row.date || row.Date || '',
+                    row.weekday || row.Weekday || '',
+                    row.duty_type || row['Duty Type'] || '',
+                    row.dep_airport || row['Departure Airport'] || '',
+                    row.dep_time || row['Departure Time'] || '',
+                    row.arr_airport || row['Arrival Airport'] || '',
+                    row.arr_time || row['Arrival Time'] || '',
+                    row.flight || row.Flight || '',
+                    row.hotel || row.Hotel || ''
                 ];
 
                 displayData.forEach(cell => {
                     const td = document.createElement('td');
-                    td.textContent = cell.replace(/"/g, '');
+                    td.textContent = String(cell).replace(/"/g, '');
                     tr.appendChild(td);
                 });
 
