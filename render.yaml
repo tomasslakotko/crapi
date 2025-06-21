@@ -1,6 +1,7 @@
 services:
   # A web service that runs the Node.js server with Python support.
   - type: web
+    plan: free
     name: crew-schedule-parser
     # The environment is 'docker' because we are using a Dockerfile.
     # Render will automatically detect and use the Dockerfile in your repo.
