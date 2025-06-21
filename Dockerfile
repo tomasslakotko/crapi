@@ -19,13 +19,11 @@ COPY requirements.txt ./
 RUN pip3 install -r requirements.txt
 
 # Copy application code
-# First, copy the parser into its own directory
-COPY ./netline-crewlink-parser /app/parser
-# Then copy the rest of the application
-COPY . .
-
-# List the contents of the /app directory to debug file paths
-RUN ls -laR /app
+# Explicitly copy the parser directory first
+COPY netline-crewlink-parser /app/netline-crewlink-parser
+# Then copy the rest of the app's files
+COPY package.json package-lock.json server.js ./
+COPY public ./public
 
 # Create necessary directories
 RUN mkdir -p uploads outputs
