@@ -24,6 +24,9 @@ COPY ./netline-crewlink-parser /app/parser
 # Then copy the rest of the application
 COPY . .
 
+# List the contents of the /app directory to debug file paths
+RUN ls -laR /app
+
 # Create necessary directories
 RUN mkdir -p uploads outputs
 
