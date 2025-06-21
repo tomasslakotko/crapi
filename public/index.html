@@ -502,15 +502,15 @@
                 
                 // Map the data to display columns - handle both formats
                 const displayData = [
-                    row.date || row.Date || '',
-                    row.weekday || row.Weekday || '',
-                    row.duty_type || row['Duty Type'] || '',
-                    row.dep_airport || row['Departure Airport'] || '',
-                    row.dep_time || row['Departure Time'] || '',
-                    row.arr_airport || row['Arrival Airport'] || '',
-                    row.arr_time || row['Arrival Time'] || '',
-                    row.flight || row.Flight || '',
-                    row.hotel || row.Hotel || ''
+                    row.Date || row.date || '',
+                    row.Weekday || row.weekday || '',
+                    row['Duty Type'] || row.duty_type || '',
+                    row['Departure Airport'] || row.dep_airport || '',
+                    row['Departure Time'] || row.dep_time || '',
+                    row['Arrival Airport'] || row.arr_airport || '',
+                    row['Arrival Time'] || row.arr_time || '',
+                    row['Flight Number'] || row.flight || '',
+                    row.Hotel || row.hotel || ''
                 ];
 
                 displayData.forEach(cell => {
