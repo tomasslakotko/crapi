@@ -77,7 +77,8 @@ app.get('/', (req, res) => {
 // Helper function to run python scripts
 const runPythonScript = (script, args) => {
   return new Promise((resolve, reject) => {
-    const scriptPath = path.join(__dirname, 'netline-crewlink-parser', script);
+    // Corrected path for Docker container environment
+    const scriptPath = path.join('/app/netline-crewlink-parser', script);
     console.log(`🐍 Running Python script: python3 ${scriptPath} ${args.join(' ')}`);
 
     execFile('python3', [scriptPath, ...args], (error, stdout, stderr) => {

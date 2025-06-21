@@ -19,6 +19,9 @@ COPY requirements.txt ./
 RUN pip3 install -r requirements.txt
 
 # Copy application code
+# First, copy the parser into its own directory
+COPY ./netline-crewlink-parser /app/parser
+# Then copy the rest of the application
 COPY . .
 
 # Create necessary directories
