@@ -19,9 +19,9 @@ COPY requirements.txt ./
 RUN pip3 install -r requirements.txt
 
 # Copy application code
-# Explicitly copy the parser directory first
-COPY netline-crewlink-parser /app/netline-crewlink-parser
-# Then copy the rest of the app's files
+# Copy parser scripts into the main app directory
+COPY netline-crewlink-parser/parser.py netline-crewlink-parser/TXTtoCSV.py /app/
+# Copy the rest of the app's files
 COPY package.json package-lock.json server.js ./
 COPY public ./public
 
