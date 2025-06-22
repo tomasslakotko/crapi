@@ -2,46 +2,107 @@ import pdfplumber
 from itertools import groupby
 import sys
 import os
+import re
 
-# === FUNCTION: Extract lines from one half ===
-def extract_column_lines(pdf, column):
-    lines = []
-    # Adjust split_x to be more robust, in case there's no perfect center split
-    split_x = pdf.pages[0].width / 2
-
+# === FUNCTION: Simple but effective approach ===
+def extract_roster_simple_approach(pdf):
+    all_entries = []
+    
     for page in pdf.pages:
-        # Use extract_text_lines for better line-by-line accuracy
-        all_lines = page.extract_text_lines(layout=True, strip=True)
+        # Get all text with positioning
+        text_objects = page.extract_words()
         
-        # Filter lines based on column
-        if column == "left":
-            page_lines = [line['text'] for line in all_lines if line['x0'] < split_x]
-        else:
-            page_lines = [line['text'] for line in all_lines if line['x0'] >= split_x]
+        # Find all date entries with their positions
+        date_objects = []
+        for obj in text_objects:
+            if re.match(r'^[A-Z][a-z]{2}\d{2}$', obj['text']):
+                date_objects.append(obj)
         
-        lines.extend(page_lines)
-
-    return lines
-
-# === FUNCTION: Clean out headers and footers ===
-def clean_roster_text(lines):
-    cleaned = []
-    # Start capturing immediately and filter out unwanted lines
-    for line in lines:
-        # Stop at common footers or summary sections
-        if "Individual duty plan for" in line or \
-           "NetLine/Crew" in line or \
-           line.strip().lower().startswith("flight time") or \
-           line.strip().lower().startswith("hotels"):
-            continue
-
-        # Skip the header line if it exists, but don't depend on it
-        if line.strip() == "date H duty R dep arr AC info":
-            continue
+        # Process each date
+        for date_obj in date_objects:
+            date_str = date_obj['text']
+            weekday = date_str[:3]
+            day_num = date_str[3:]
             
-        cleaned.append(line)
-
-    return cleaned
+            # Find all text objects near this date (same row, to the right)
+            date_y = date_obj['top']
+            date_x_end = date_obj['x1']
+            
+            # Look for objects in the same row (within 5 units vertically)
+            row_objects = []
+            for obj in text_objects:
+                if abs(obj['top'] - date_y) < 5 and obj['x0'] > date_x_end:
+                    row_objects.append(obj)
+            
+            # Sort by X position
+            row_objects.sort(key=lambda x: x['x0'])
+            
+            # Build the text for this date's row
+            row_text = ' '.join([obj['text'] for obj in row_objects])
+            
+            # Parse the row content
+            if 'DAYOFF' in row_text:
+                location_match = re.search(r'DAYOFF\s+([A-Z]{3})', row_text)
+                location = location_match.group(1) if location_match else None
+                all_entries.append({
+                    'date': date_str,
+                    'weekday': weekday,
+                    'day_num': day_num,
+                    'duty_type': 'DAYOFF',
+                    'location': location
+                })
+            
+            elif 'C/I' in row_text:
+                ci_match = re.search(r'C/I\s+([A-Z]{3})\s+(\d{4})', row_text)
+                if ci_match:
+                    airport, time = ci_match.groups()
+                    all_entries.append({
+                        'date': date_str,
+                        'weekday': weekday,
+                        'day_num': day_num,
+                        'duty_type': 'C/I',
+                        'location': airport,
+                        'time': time
+                    })
+            
+            # Look for flights in subsequent rows (within reasonable distance)
+            for obj in text_objects:
+                if (obj['top'] > date_y + 5 and obj['top'] < date_y + 50 and 
+                    abs(obj['x0'] - date_obj['x0']) < 100):  # Same column area
+                    
+                    # Check if this starts a flight line
+                    flight_match = re.match(r'^[A-Z]{2}$', obj['text'])
+                    if flight_match:
+                        # Get the full flight line
+                        flight_y = obj['top']
+                        flight_objects = []
+                        for flight_obj in text_objects:
+                            if abs(flight_obj['top'] - flight_y) < 3:
+                                flight_objects.append(flight_obj)
+                        
+                        flight_objects.sort(key=lambda x: x['x0'])
+                        flight_text = ' '.join([fo['text'] for fo in flight_objects])
+                        
+                        # Parse flight information
+                        flight_pattern = r'([A-Z]{2}\s+\d{3,4})\s+([A-Z]{3})\s+(\d{4})\s+(\d{4})\s+([A-Z]{3})\s*([A-Z0-9]*)'
+                        flight_matches = re.findall(flight_pattern, flight_text)
+                        
+                        for flight_match in flight_matches:
+                            flight_num, dep_airport, dep_time, arr_time, arr_airport, aircraft = flight_match
+                            all_entries.append({
+                                'date': date_str,
+                                'weekday': weekday,
+                                'day_num': day_num,
+                                'duty_type': 'FLIGHT',
+                                'flight_number': flight_num.strip(),
+                                'dep_airport': dep_airport,
+                                'dep_time': dep_time,
+                                'arr_time': arr_time,
+                                'arr_airport': arr_airport,
+                                'aircraft': aircraft.strip() if aircraft else None
+                            })
+    
+    return all_entries
 
 # === MAIN PROCESS ===
 try:
@@ -56,62 +117,28 @@ try:
         output_dir = sys.argv[2]
         
     with pdfplumber.open(pdf_path) as pdf:
-        left_raw = extract_column_lines(pdf, "left")
-        right_raw = extract_column_lines(pdf, "right")
+        parsed_data = extract_roster_simple_approach(pdf)
 
-    # Clean both columns
-    left_cleaned = clean_roster_text(left_raw)
-    right_cleaned = clean_roster_text(right_raw)
-
-    # Combine all lines
-    combined_all = left_cleaned + right_cleaned
+    # Sort by date
+    parsed_data.sort(key=lambda x: int(x['day_num']))
     
-    # Simple filtering for obviously empty or junk lines
-    combined_all = [line for line in combined_all if line.strip()]
+    # Create clean text output
+    clean_lines = []
+    for entry in parsed_data:
+        if entry['duty_type'] == 'DAYOFF':
+            clean_lines.append(f"{entry['date']} DAYOFF {entry.get('location', '')}")
+        elif entry['duty_type'] == 'C/I':
+            clean_lines.append(f"{entry['date']} C/I {entry.get('location', '')} {entry.get('time', '')}")
+        elif entry['duty_type'] == 'FLIGHT':
+            clean_lines.append(f"{entry['date']} {entry['flight_number']} {entry['dep_airport']} {entry['dep_time']} {entry['arr_time']} {entry['arr_airport']} {entry.get('aircraft', '')}")
 
-    # Group by lines that start with a weekday + day number
-    import re
-    day_start_pattern = re.compile(r"^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\d{2}")
-    blocks = []
-    current_block = []
-    current_day = None
-
-    # Sort lines based on a rough vertical position heuristic if possible, though it's complex.
-    # For now, we assume reasonable order from text extraction.
-    
-    # Consolidate multi-line entries into blocks
-    for line in combined_all:
-        if day_start_pattern.match(line):
-            if current_block:
-                blocks.append(current_block)
-            current_block = [line]
-        elif current_block:
-            current_block.append(line)
-
-    if current_block:
-        blocks.append(current_block)
-
-    # Define real calendar order for sorting
-    weekday_order = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
-    def block_sort_key(block):
-        day_str = block[0][:3]
-        date_num_match = re.search(r'\d{2}', block[0])
-        if not date_num_match: return 99 # Push blocks without a date to the end
-        date_num = int(date_num_match.group(0))
-        return date_num + weekday_order.get(day_str, 7) / 10
-
-    # Sort blocks
-    sorted_blocks = sorted(blocks, key=block_sort_key)
-
-    # Flatten back into lines
-    sorted_lines = [line for block in sorted_blocks for line in block]
-
-    # Save
+    # Save cleaned output
     combined_path = os.path.join(output_dir, "combined_cleaned_roster.txt")
     with open(combined_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(sorted_lines))
+        f.write("\n".join(clean_lines))
 
     print(f"✅ Combined cleaned roster saved to {combined_path}")
+    print(f"✅ Parsed {len(parsed_data)} entries")
 
 except Exception as e:
     print(f"❌ Error processing PDF in parser.py: {e}")
